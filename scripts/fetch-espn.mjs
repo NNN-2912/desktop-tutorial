@@ -9,7 +9,7 @@ import { writeFileSync } from "node:fs";
 const SEASON = Number(process.argv[2] || process.env.SEASON || 2027);
 const LIMIT = 550;
 
-const URL = `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${SEASON}/segments/0/leaguedefaults/3?view=kona_player_info`;
+const API_URL = `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${SEASON}/segments/0/leaguedefaults/3?view=kona_player_info`;
 
 // ESPN stat ids -> our keys
 const STAT = {
@@ -50,7 +50,7 @@ async function fetchWithRetry(tries = 4) {
   let delay = 2000;
   for (let i = 1; ; i++) {
     try {
-      const res = await fetch(URL, {
+      const res = await fetch(API_URL, {
         headers: {
           "X-Fantasy-Filter": JSON.stringify(filter),
           "X-Fantasy-Platform": "kona-PROD",
