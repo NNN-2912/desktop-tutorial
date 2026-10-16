@@ -30,9 +30,9 @@ const SLOT_POS = { 0: "PG", 1: "SG", 2: "SF", 3: "PF", 4: "C" };
 const DEFAULT_POS = { 1: "PG", 2: "SG", 3: "SF", 4: "PF", 5: "C" };
 
 const sources = {
-  proj: `1${SEASON}`, // projected, full season
-  season: `0${SEASON}`, // actual, season to date
-  last: `0${SEASON - 1}`, // actual, last season
+  proj: `10${SEASON}`, // projected, full season
+  season: `00${SEASON}`, // actual, season to date
+  last: `00${SEASON - 1}`, // actual, last season
 };
 
 const filter = {
@@ -108,6 +108,11 @@ for (const row of list) {
     if (s) rec[key] = s;
   }
   if (rec.proj || rec.season || rec.last) players.push(rec);
+}
+
+if (players.length < 50) {
+  const sample = list[0]?.player?.stats?.map((s) => `${s.id}/${s.statSplitTypeId}`).join(" ");
+  throw new Error(`Only ${players.length} players had stats; not saving. Sample stat ids: ${sample}`);
 }
 
 const payload = {

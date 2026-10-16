@@ -73,7 +73,8 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .hint { font-size: 12px; color: var(--muted); }
 
 main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; padding-block: 16px 40px; align-items: start; }
-@media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); } aside { order: -1; } }
+@media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); } aside { display: contents; } #teampanel { order: -1; } .helppanel { order: 1; } }
+@media (max-width: 700px) { .controls { position: static; } }
 
 .tablebox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: calc(100vh - 150px); min-width: 0; }
 @media (max-width: 1100px) { .tablebox { max-height: 75vh; } }
@@ -117,8 +118,14 @@ aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .pill.punt { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
 .zval { text-align: right; }
 .roster, .adds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.roster li, .adds li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
-.roster li span:first-child, .adds li span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adds li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.adds li > small { grid-column: 1; grid-row: 2; }
+.adds li > .btns { grid-column: 2; grid-row: 1 / span 2; white-space: nowrap; }
+.tk { border: 0; background: none; cursor: pointer; font-size: 12px; line-height: 1; color: var(--line); padding: 2px 4px; }
+.tk[aria-pressed="true"] { color: var(--bad); }
+tr.taken td:not(:nth-child(2)) { opacity: 0.38; }
+.roster li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.roster li span:first-child, .adds li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .adds small, .roster small { color: var(--muted); font-size: 12px; }
 .mini { font: 600 12px/1 var(--font-data); border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 5px; padding: 5px 8px; cursor: pointer; }
 .legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
@@ -161,7 +168,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       <div class="seg" role="group" aria-label="Which players">
         <button type="button" id="show-all" aria-pressed="true">All players</button>
         <button type="button" id="show-mine" aria-pressed="false">My team</button>
-        <button type="button" id="show-free" aria-pressed="false">Not on my team</button>
+        <button type="button" id="show-free" aria-pressed="false">Available</button>
       </div>
       <span class="legend"><span>below avg</span><i></i><span>above avg</span></span>
     </div>
@@ -182,7 +189,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       <div id="teamcontent"></div>
     </section>
 
-    <section class="panel">
+    <section class="panel helppanel">
       <details class="help">
         <summary>How the numbers work</summary>
         <p>Each colored cell is a z-score: how many standard deviations a player sits above or below the average of the top players who would be rostered in your league (teams × roster size). Green helps you, red hurts you.</p>
@@ -242,7 +249,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
   const state = {
     src: "proj", mode: store.get("mode", "avg"), teams: store.get("teams", 10), roster: store.get("roster", 13),
     minGp: 0, cats: new Set(store.get("cats", CATS.map((c) => c.k))), q: "", pos: "", team: "",
-    show: "all", sort: "value", dir: -1, mine: new Set(store.get("mine", [])),
+    show: "all", sort: "value", dir: -1, mine: new Set(store.get("mine", [])), taken: new Set(store.get("taken", [])),
   };
 
   const $ = (id) => document.getElementById(id);
@@ -314,7 +321,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
 
   const COLS = [
     { k: "rank", label: "Rk", cls: "rk" },
-    { k: "star", label: "★" },
+    { k: "star", label: "★ ✕" },
     { k: "name", label: "Player", cls: "l player" },
     { k: "gp", label: "GP" },
     { k: "min", label: "MPG" },
@@ -347,7 +354,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       (!q || r.p.name.toLowerCase().includes(q)) &&
       (!state.pos || (r.p.pos || "").split(",").includes(state.pos)) &&
       (!state.team || r.p.team === state.team) &&
-      (state.show === "all" || (state.show === "mine") === state.mine.has(r.p.name)));
+      (state.show === "all" || (state.show === "mine" ? state.mine.has(r.p.name) : !state.mine.has(r.p.name) && !state.taken.has(r.p.name))));
     const k = state.sort;
     list.sort((a, b) => {
       const x = sortVal(a, k), y = sortVal(b, k);
@@ -366,9 +373,10 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
         else txt = per ? Math.round(r[c.k]) : fmt1(r[c.k]);
         return `<td class="z${off}" style="${zColor(r.z[c.k])}" title="z ${r.z[c.k].toFixed(2)}">${txt}</td>`;
       }).join("");
-      return `<tr class="${mine ? "mine" : ""}">
+      const taken = state.taken.has(r.p.name);
+      return `<tr class="${mine ? "mine" : ""}${taken ? " taken" : ""}">
         <td class="rk">${r.rank}</td>
-        <td><button type="button" class="star" data-name="${esc(r.p.name)}" aria-pressed="${mine}" aria-label="${mine ? "Remove from" : "Add to"} my team">★</button></td>
+        <td><button type="button" class="star" data-name="${esc(r.p.name)}" aria-pressed="${mine}" aria-label="${mine ? "Remove from" : "Add to"} my team" title="My team">★</button><button type="button" class="tk" data-name="${esc(r.p.name)}" aria-pressed="${taken}" aria-label="Mark as taken by another team" title="Taken by another team">✕</button></td>
         <td class="l player"><span class="pname">${esc(r.p.name)}${r.p.inj ? `<span class="inj" title="${esc(r.p.inj)}">${esc(shortInj(r.p.inj))}</span>` : ""}</span><span class="pmeta">${esc(r.p.team)} · ${esc((r.p.pos || "").replace(/,/g, "/"))}</span></td>
         <td>${r.gp}</td><td>${fmt1(r.min)}</td>${cells}
         <td class="val" style="${zColor(r.value / 3)}">${r.value.toFixed(2)}</td>
@@ -425,7 +433,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
 
     // Suggested pickups: best players outside my team for the weakest active categories.
     const target = (needs.length ? needs : ranked.slice(0, 2)).map((c) => c.k);
-    const adds = rows.filter((r) => !state.mine.has(r.p.name))
+    const adds = rows.filter((r) => !state.mine.has(r.p.name) && !state.taken.has(r.p.name))
       .map((r) => ({ r, s: target.reduce((a, k) => a + r.z[k], 0) + r.value * 0.15 }))
       .sort((a, b) => b.s - a.s).slice(0, 8);
 
@@ -436,13 +444,14 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       <h3>Best adds for ${target.map((k) => CATS.find((c) => c.k === k).label).join(" + ")}</h3>
       <ul class="adds">${adds.map(({ r }) => `<li><span>${esc(r.p.name)} <small>${esc(r.p.team)} · #${r.rank}</small></span>
         <small>${target.map((k) => `${CATS.find((c) => c.k === k).label} ${r.z[k] >= 0 ? "+" : ""}${r.z[k].toFixed(1)}`).join(" ")}</small>
-        <button type="button" class="mini" data-add="${esc(r.p.name)}">Add</button></li>`).join("")}</ul>
+        <span class="btns"><button type="button" class="mini" data-add="${esc(r.p.name)}">Add</button> <button type="button" class="mini" data-take="${esc(r.p.name)}" title="Already on another team in your league">Taken</button></span></li>`).join("")}</ul>
+      <p class="hint">Mark players other managers own with ✕ (or "Taken") so suggestions only show free agents.</p>
       <h3>Roster (${n})</h3>
       <ul class="roster">${mine.sort((a, b) => b.value - a.value).map((r) => `<li><span>${esc(r.p.name)} <small>${esc(r.p.team)}</small></span>
         <small>#${r.rank} · ${r.value.toFixed(2)}</small>
         <button type="button" class="mini" data-remove="${esc(r.p.name)}">Remove</button></li>`).join("")}</ul>
       ${missing.length ? `<p class="hint">Not in this stat set: ${missing.map(esc).join(", ")}</p>` : ""}
-      <p style="margin-top:12px"><button type="button" class="btn" id="clearteam">Clear my team</button></p>`;
+      <p style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap"><button type="button" class="btn" id="clearteam">Clear my team</button>${state.taken.size ? `<button type="button" class="btn" id="cleartaken">Clear ${state.taken.size} taken</button>` : ""}</p>`;
   }
 
   // ---------- controls ----------
@@ -510,12 +519,23 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     store.set("mine", [...state.mine]);
     render();
   }
-  on("body", "click", (e) => { const b = e.target.closest(".star"); if (b) toggleMine(b.dataset.name); });
+  function toggleTaken(name) {
+    if (state.taken.has(name)) state.taken.delete(name); else { state.taken.add(name); state.mine.delete(name); store.set("mine", [...state.mine]); }
+    store.set("taken", [...state.taken]);
+    render();
+  }
+  on("body", "click", (e) => {
+    const b = e.target.closest(".star, .tk"); if (!b) return;
+    if (b.classList.contains("tk")) toggleTaken(b.dataset.name);
+    else { if (state.taken.has(b.dataset.name)) toggleTaken(b.dataset.name); toggleMine(b.dataset.name); }
+  });
   on("teamcontent", "click", (e) => {
     const t = e.target;
     if (t.dataset.add) toggleMine(t.dataset.add, true);
+    else if (t.dataset.take) toggleTaken(t.dataset.take);
     else if (t.dataset.remove) toggleMine(t.dataset.remove, false);
     else if (t.id === "clearteam") { state.mine.clear(); store.set("mine", []); render(); }
+    else if (t.id === "cleartaken") { state.taken.clear(); store.set("taken", []); render(); }
   });
 
   // ---------- CSV import ----------
