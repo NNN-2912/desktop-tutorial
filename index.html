@@ -451,7 +451,10 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
   const sameAsSaved = () => { const n = window.MY_TEAM.players.map((p) => p.name); return n.length === state.mine.size && n.every((x) => state.mine.has(x)); };
   const roleOrder = (r) => (ROLE[r.p.name] && ROLE[r.p.name].role === "Bench" ? 1 : 0);
 
+  const myName = () => (window.LEAGUE && window.LEAGUE.myTeam) || "My Team";
+
   function renderTeam() {
+    $("teamtitle").textContent = myName();
     const { rows } = last;
     const mine = rows.filter((r) => state.mine.has(r.p.name));
     const missing = [...state.mine].filter((n) => !mine.some((r) => r.p.name === n));
@@ -562,7 +565,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       mu = `<h3>Matchup preview</h3>
         <p class="score">${w}–${l}${tie ? "–" + tie : ""}</p>
         <p class="hint">${w > l ? "You'd win" : w < l ? "You'd lose" : "Too close to call"}, comparing each side's best ${size} players (${state.mode === "tot" ? "season totals" : "per game"}). Real weeks also depend on games played and injuries.</p>
-        <div class="mu"><span></span><span class="h" style="text-align:right">You</span><span class="h" style="text-align:right">${esc(state.opp)}</span>${cells}</div>`;
+        <div class="mu"><span></span><span class="h" style="text-align:right">${esc(myName())}</span><span class="h" style="text-align:right">${esc(state.opp)}</span>${cells}</div>`;
     } else {
       mu = `<p class="hint">Add at least 8 of their players to see a head-to-head matchup preview against your team.</p>`;
     }
