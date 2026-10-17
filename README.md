@@ -12,6 +12,8 @@ A player-value tool for **ESPN fantasy basketball head-to-head category leagues*
 
 Your starred and taken players are saved in your browser.
 
+**Your roster** lives in `data/my-team.js` and is starred automatically on every device. To change it, edit the list and raise `version` by 1. Players you star or remove on the site are remembered in that browser until the version changes.
+
 ## Where the data comes from
 
 `scripts/fetch-espn.mjs` downloads ESPN Fantasy's own player projections and season stats.

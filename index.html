@@ -125,6 +125,8 @@ aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .tk[aria-pressed="true"] { color: var(--bad); }
 tr.taken td:not(:nth-child(2)) { opacity: 0.38; }
 .roster li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.roster li .note { grid-column: 1 / -1; color: var(--muted); }
+.roster li .note b { font-weight: 600; color: var(--ink); }
 .roster li span:first-child, .adds li > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .adds small, .roster small { color: var(--muted); font-size: 12px; }
 .mini { font: 600 12px/1 var(--font-data); border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 5px; padding: 5px 8px; cursor: pointer; }
@@ -206,6 +208,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
 
 <script src="data/seed-players.js"></script>
 <script src="data/players.js" onerror="void 0"></script>
+<script src="data/my-team.js" onerror="void 0"></script>
 <script>
 (function () {
   "use strict";
@@ -249,8 +252,21 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
   const state = {
     src: "proj", mode: store.get("mode", "avg"), teams: store.get("teams", 10), roster: store.get("roster", 13),
     minGp: 0, cats: new Set(store.get("cats", CATS.map((c) => c.k))), q: "", pos: "", team: "",
-    show: "all", sort: "value", dir: -1, mine: new Set(store.get("mine", [])), taken: new Set(store.get("taken", [])),
+    show: "all", sort: "value", dir: -1, mine: new Set(initialTeam()), taken: new Set(store.get("taken", [])),
   };
+
+  // The roster in data/my-team.js wins whenever its version changes; after that, edits made on the site stick.
+  function initialTeam() {
+    const saved = window.MY_TEAM;
+    if (saved && saved.players && store.get("teamVersion", null) !== saved.version) {
+      const names = saved.players.map((p) => p.name);
+      store.set("mine", names);
+      store.set("teamVersion", saved.version);
+      return names;
+    }
+    return store.get("mine", []);
+  }
+  const ROLE = Object.fromEntries(((window.MY_TEAM && window.MY_TEAM.players) || []).map((p) => [p.name, p]));
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -389,13 +405,16 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     return ({ OUT: "OUT", DAY_TO_DAY: "DTD", INJURY_RESERVE: "IR", SUSPENSION: "SUSP", QUESTIONABLE: "Q", DOUBTFUL: "D" })[s] || s.slice(0, 4);
   }
 
+  const sameAsSaved = () => { const n = window.MY_TEAM.players.map((p) => p.name); return n.length === state.mine.size && n.every((x) => state.mine.has(x)); };
+  const roleOrder = (r) => (ROLE[r.p.name] && ROLE[r.p.name].role === "Bench" ? 1 : 0);
+
   function renderTeam() {
     const { rows } = last;
     const mine = rows.filter((r) => state.mine.has(r.p.name));
     const missing = [...state.mine].filter((n) => !mine.some((r) => r.p.name === n));
     const box = $("teamcontent");
     if (!mine.length) {
-      box.innerHTML = `<p class="verdict">No players yet. Tap the ★ next to each player on your ESPN roster and this panel shows which categories you are winning and which ones you need.</p>`;
+      box.innerHTML = `<p class="verdict">No players yet. Tap the ★ next to each player on your ESPN roster and this panel shows which categories you are winning and which ones you need.</p>${window.MY_TEAM ? `<p><button type="button" class="btn" id="resetteam">Reload saved roster</button></p>` : ""}`;
       return;
     }
     const n = mine.length;
@@ -447,11 +466,15 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
         <span class="btns"><button type="button" class="mini" data-add="${esc(r.p.name)}">Add</button> <button type="button" class="mini" data-take="${esc(r.p.name)}" title="Already on another team in your league">Taken</button></span></li>`).join("")}</ul>
       <p class="hint">Mark players other managers own with ✕ (or "Taken") so suggestions only show free agents.</p>
       <h3>Roster (${n})</h3>
-      <ul class="roster">${mine.sort((a, b) => b.value - a.value).map((r) => `<li><span>${esc(r.p.name)} <small>${esc(r.p.team)}</small></span>
+      <ul class="roster">${mine.sort((a, b) => (roleOrder(a) - roleOrder(b)) || (b.value - a.value)).map((r) => {
+        const info = ROLE[r.p.name];
+        return `<li><span>${esc(r.p.name)} <small>${esc(r.p.team)}${r.p.inj ? ` · <span class="warn">${esc(shortInj(r.p.inj))}</span>` : ""}</small></span>
         <small>#${r.rank} · ${r.value.toFixed(2)}</small>
-        <button type="button" class="mini" data-remove="${esc(r.p.name)}">Remove</button></li>`).join("")}</ul>
+        <button type="button" class="mini" data-remove="${esc(r.p.name)}">Remove</button>
+        ${info ? `<small class="note"><b>${esc(info.role)}</b>${info.note ? " · " + esc(info.note) : ""}</small>` : ""}</li>`;
+      }).join("")}</ul>
       ${missing.length ? `<p class="hint">Not in this stat set: ${missing.map(esc).join(", ")}</p>` : ""}
-      <p style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap"><button type="button" class="btn" id="clearteam">Clear my team</button>${state.taken.size ? `<button type="button" class="btn" id="cleartaken">Clear ${state.taken.size} taken</button>` : ""}</p>`;
+      <p style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap"><button type="button" class="btn" id="clearteam">Clear my team</button>${window.MY_TEAM && !sameAsSaved() ? `<button type="button" class="btn" id="resetteam">Reload saved roster</button>` : ""}${state.taken.size ? `<button type="button" class="btn" id="cleartaken">Clear ${state.taken.size} taken</button>` : ""}</p>`;
   }
 
   // ---------- controls ----------
@@ -535,6 +558,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     else if (t.dataset.take) toggleTaken(t.dataset.take);
     else if (t.dataset.remove) toggleMine(t.dataset.remove, false);
     else if (t.id === "clearteam") { state.mine.clear(); store.set("mine", []); render(); }
+    else if (t.id === "resetteam") { state.mine = new Set(window.MY_TEAM.players.map((p) => p.name)); store.set("mine", [...state.mine]); render(); }
     else if (t.id === "cleartaken") { state.taken.clear(); store.set("taken", []); render(); }
   });
 
