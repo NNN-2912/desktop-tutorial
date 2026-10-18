@@ -1,8 +1,8 @@
 # NBA 9-Cat Checker
 
-A player-value tool for **ESPN fantasy basketball head-to-head category leagues** (FG%, FT%, 3PM, PTS, REB, AST, STL, BLK, TO), modeled on Hashtag Basketball's projections page.
+A player-value tool for our **ESPN fantasy basketball head-to-head league** (YTBBB), scoring **FG%, FT%, 3P%, REB, AST, A/TO, STL, BLK and PTS**. It is modeled on Hashtag Basketball's projections page.
 
-- Ranks every player by z-score in each of the 9 categories, colored green (helps you) to red (hurts you).
+- Ranks every player by z-score in each of the 9 categories, colored green (helps you) to red (hurts you). The categories are set in the `CATS` list in `index.html`.
 - **Punt builds:** tap a category to switch it off and the rankings recalculate.
 - **League settings:** number of teams and roster size set the player pool the values are measured against.
 - **Per game / totals**, **2026-27 projections**, **2026-27 season so far** (once games start) and **2025-26 actual**.
@@ -11,6 +11,10 @@ A player-value tool for **ESPN fantasy basketball head-to-head category leagues*
 - **CSV import** if you want to use your own projections.
 
 Your starred and taken players are saved in your browser.
+
+**Your roster** lives in `data/my-team.js` and is starred automatically on every device. To change it, edit the list and raise `version` by 1. Players you star or remove on the site are remembered in that browser until the version changes.
+
+**Your league** lives in `data/league.js`: each manager's team name and the players they own. Their players show the team name in the table and are left out of pickup suggestions. In the **League** panel you can pick a team, add players to it, and once a team has 8+ players, see a head-to-head matchup preview against yours. Same rule: edit the file and raise `version` to push changes to every device.
 
 ## Where the data comes from
 
@@ -32,4 +36,4 @@ To refresh the data by hand: **Actions → Update player data → Run workflow**
 
 ## How values are calculated
 
-For each category, a player's z-score is `(player − pool average) ÷ pool standard deviation`, where the pool is the top `teams × roster` players. FG% and FT% use attempt-weighted impact (`makes − league% × attempts`), so volume matters. Turnovers are reversed (fewer is better). **Value** is the sum of the categories you have switched on.
+For each category, a player's z-score is `(player − pool average) ÷ pool standard deviation`, where the pool is the top `teams × roster` players. FG%, FT%, 3P% and A/TO are team ratios, so they use volume-weighted impact (`makes − league% × attempts`, or `assists − league A/TO × turnovers`). **Value** is the sum of the categories you have switched on.
