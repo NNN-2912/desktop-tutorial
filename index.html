@@ -40,7 +40,7 @@
 * { box-sizing: border-box; }
 html, body { background: var(--bg); color: var(--ink); }
 body { margin: 0; font: 15px/1.45 var(--font-body); }
-.wrap { max-width: 1440px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1920px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 
 header.top { padding-block: 22px 14px; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
 h1 { font: 700 clamp(30px, 4.4vw, 46px)/0.95 var(--font-display); letter-spacing: 0.01em; margin: 0; text-transform: uppercase; text-wrap: balance; }
@@ -72,12 +72,17 @@ input[type="search"] { width: min(240px, 100%); }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hint { font-size: 12px; color: var(--muted); }
 
-main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; padding-block: 16px 40px; align-items: start; }
-@media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); } aside { display: contents; } #teampanel { order: -1; } .helppanel { order: 1; } }
+/* Wide: table | my team | league. Medium: my team + league side by side above the table. Phone: one column. */
+main { display: grid; grid-template-columns: minmax(0, 1fr) 340px 340px; grid-template-areas: "table side league"; gap: 20px; padding-block: 16px 40px; align-items: start; }
+.tablebox { grid-area: table; }
+aside.side { grid-area: side; }
+aside.league { grid-area: league; }
+@media (max-width: 1199px) { main { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "side league" "table table"; } }
+@media (max-width: 760px) { main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "league" "table"; } }
 @media (max-width: 700px) { .controls { position: static; } }
 
 .tablebox { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: calc(100vh - 150px); min-width: 0; }
-@media (max-width: 1100px) { .tablebox { max-height: 75vh; } }
+@media (max-width: 1199px) { .tablebox { max-height: 75vh; } }
 table { border-collapse: separate; border-spacing: 0; width: 100%; font: 500 14px/1.2 var(--font-data); font-variant-numeric: tabular-nums; }
 th, td { padding: 7px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
 thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); font: 700 13px/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); cursor: pointer; user-select: none; }
@@ -195,19 +200,12 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     </table>
   </div>
 
-  <aside>
+  <aside class="side">
     <section class="panel" id="teampanel" aria-labelledby="teamtitle">
       <h2 id="teamtitle">My Team</h2>
       <div id="teamcontent"></div>
     </section>
 
-    <section class="panel" id="leaguepanel" aria-labelledby="leaguetitle">
-      <h2 id="leaguetitle">League</h2>
-      <label class="field" for="opp" style="margin-top:8px">Team
-        <select id="opp"></select>
-      </label>
-      <div id="leaguecontent"></div>
-    </section>
 
     <section class="panel helppanel">
       <details class="help">
@@ -220,6 +218,16 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       <h3>Use your own numbers</h3>
       <p class="hint">Load a CSV with columns: name, team, pos, gp, min, pts, reb, ast, stl, blk, tpm, tpa, fgm, fga, ftm, fta, to.</p>
       <input type="file" id="csv" accept=".csv,text/csv" aria-label="Load CSV file">
+    </section>
+  </aside>
+
+  <aside class="league">
+    <section class="panel" id="leaguepanel" aria-labelledby="leaguetitle">
+      <h2 id="leaguetitle">League</h2>
+      <label class="field" for="opp" style="margin-top:8px">Team
+        <select id="opp"></select>
+      </label>
+      <div id="leaguecontent"></div>
     </section>
   </aside>
 </main>
