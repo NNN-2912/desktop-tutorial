@@ -2,7 +2,7 @@
 // screenshots). Names must match ESPN's spelling. After editing, raise `version` by 1 so every
 // browser reloads the list (changes made on the site are kept until then).
 window.LEAGUE = {
-  version: 2,
+  version: 3,
   updated: "2026-10-18",
   myTeam: "Ball in the Family",
   teams: [
@@ -180,8 +180,9 @@ window.LEAGUE = {
     },
     {
       name: "Haliberry Halilujah",
-      // Josh Giddey, Dyson Daniels, Alex Sarr and Alperen Sengun are moving to Ball in the Family
-      // in a pending trade, so they are listed in data/my-team.js instead.
+      // Pending trade with Ball in the Family: Josh Giddey, Dyson Daniels, Alex Sarr and Alperen Sengun
+      // go to Ball in the Family (see data/my-team.js); Haliburton, Grayson Allen, Myles Turner and
+      // Alex Caruso come here.
       players: [
         "Ausar Thompson",
         "Derik Queen",
@@ -191,6 +192,10 @@ window.LEAGUE = {
         "Kyshawn George",
         "Davion Mitchell",
         "Mikel Brown Jr.",
+        "Tyrese Haliburton",
+        "Grayson Allen",
+        "Myles Turner",
+        "Alex Caruso",
       ],
     },
     {
