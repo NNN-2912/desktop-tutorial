@@ -21,6 +21,7 @@
   --good: #109a4c;
   --bad: #d8382c;
   --star: #e09b00;
+  --close: #b7860b;
   --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-data: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
@@ -28,13 +29,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0c111b; --surface: #141b29; --surface-2: #1b2435; --ink: #e6ebf4; --muted: #95a1b7;
-    --line: #283246; --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d;
+    --line: #283246; --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d; --close: #f2c94c;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0c111b; --surface: #141b29; --surface-2: #1b2435; --ink: #e6ebf4; --muted: #95a1b7;
-  --line: #283246; --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d;
+  --line: #283246; --accent: #7aa2ff; --accent-ink: #0c111b; --good: #34d07f; --bad: #ff6a5c; --star: #ffc23d; --close: #f2c94c;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -109,6 +110,9 @@ tbody tr:hover td { filter: brightness(0.97); }
 .mu .cat { font: 700 13px/1 var(--font-display); letter-spacing: 0.04em; }
 .mu .v { text-align: right; padding: 3px 6px; border-radius: 4px; }
 .mu .w { background: color-mix(in srgb, var(--good) 20%, transparent); color: var(--good); font-weight: 700; }
+.mu .c { background: color-mix(in srgb, var(--close) 20%, transparent); color: var(--close); font-weight: 700; }
+.mu .cat.c { background: none; }
+.close-note { color: var(--close); font-weight: 600; }
 .mu .off { opacity: 0.4; }
 .score { font: 700 26px/1 var(--font-display); margin: 6px 0 2px; }
 .addrow { display: flex; gap: 6px; margin-top: 10px; }
@@ -129,6 +133,7 @@ aside { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .pill { font: 700 11px/1 var(--font-data); text-transform: uppercase; letter-spacing: 0.05em; border-radius: 999px; padding: 4px 7px; text-align: center; }
 .pill.strong { background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good); }
 .pill.ok { background: var(--surface-2); color: var(--muted); }
+.pill.close { background: color-mix(in srgb, var(--close) 24%, transparent); color: var(--close); }
 .pill.need { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
 .pill.punt { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
 .zval { text-align: right; }
@@ -478,8 +483,9 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     const tot = {};
     for (const c of CATS) tot[c.k] = mine.reduce((a, r) => a + r.z[c.k], 0);
     const per = (k) => tot[k] / n;
-    const status = (k) => !state.cats.has(k) ? "punt" : per(k) >= 0.35 ? "strong" : per(k) <= -0.15 ? "need" : "ok";
-    const statusLabel = { strong: "Strong", ok: "Even", need: "Need", punt: "Punted" };
+    // "Close" = team total within ±1.0 z: a category that can swing either way in a given week.
+    const status = (k) => !state.cats.has(k) ? "punt" : Math.abs(tot[k]) < 1 ? "close" : per(k) >= 0.35 ? "strong" : per(k) <= -0.15 ? "need" : "ok";
+    const statusLabel = { strong: "Strong", ok: "Even", need: "Need", close: "Close", punt: "Punted" };
     const maxAbs = Math.max(1.5, ...CATS.map((c) => Math.abs(per(c.k))));
 
     const active = CATS.filter((c) => state.cats.has(c.k));
@@ -491,6 +497,8 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     let verdict = `<b>${wins} of ${active.length}</b> categories above league average. `;
     verdict += strong.length ? `Strong in <b>${strong.map((c) => c.label).join(", ")}</b>. ` : "";
     verdict += needs.length ? `Needs help in <b>${needs.map((c) => c.label).join(", ")}</b>.` : "No clear weak spots.";
+    const closeOnes = active.filter((c) => status(c.k) === "close");
+    if (closeOnes.length) verdict += ` <span class="close-note">Close: ${closeOnes.map((c) => c.label).join(", ")}</span>.`;
     const worst = ranked[0];
     if (worst && per(worst.k) < -0.7 && active.length === CATS.length) {
       verdict += ` You are far behind in ${worst.label}, so punting it and turning it off above could free you to stack the rest.`;
@@ -500,7 +508,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       const v = per(c.k), st = status(c.k);
       const w = Math.min(Math.abs(v) / maxAbs, 1) * 50;
       const left = v >= 0 ? 50 : 50 - w;
-      const col = st === "punt" ? "var(--line)" : v >= 0 ? "var(--good)" : "var(--bad)";
+      const col = st === "punt" ? "var(--line)" : st === "close" ? "var(--close)" : v >= 0 ? "var(--good)" : "var(--bad)";
       return `<span class="cat">${c.label}</span>
         <span class="track" role="img" aria-label="${c.label} ${v.toFixed(2)} per player"><span class="fill" style="left:${left}%;width:${w}%;background:${col}"></span></span>
         <span class="pill ${st}">${statusLabel[st]}</span>
@@ -562,17 +570,23 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       const best = (list) => [...list].sort((x, y) => y.value - x.value).slice(0, size);
       const a = teamLine(best(mine)), b = teamLine(best(theirs));
       let w = 0, l = 0, tie = 0;
+      const closeCats = [];
       const cells = CATS.map((c) => {
         const on = state.cats.has(c.k);
         const fmt = (v) => c.pct ? v.toFixed(3).replace(/^0/, "") : c.num ? v.toFixed(2) : state.mode === "tot" ? Math.round(v) : v.toFixed(1);
         let win = 0;
+        const gap = Math.abs(a[c.k] - b[c.k]);
+        const close = on && (c.pct ? gap <= 0.010 : c.num ? gap <= 0.15 : gap <= 0.05 * Math.max(a[c.k], b[c.k]));
+        if (close) closeCats.push(c.label);
         if (Math.abs(a[c.k] - b[c.k]) > (c.pct ? 0.0005 : c.num ? 0.005 : 0.05)) win = (a[c.k] > b[c.k]) !== !!c.neg ? 1 : -1;
         if (on) { if (win > 0) w++; else if (win < 0) l++; else tie++; }
         const off = on ? "" : " off";
-        return `<span class="cat${off}">${c.label}</span><span class="v${win > 0 && on ? " w" : ""}${off}">${fmt(a[c.k])}</span><span class="v${win < 0 && on ? " w" : ""}${off}">${fmt(b[c.k])}</span>`;
+        const mark = (side) => !on ? "" : close && (win === side || win === 0) ? " c" : win === side ? " w" : "";
+        return `<span class="cat${off}${close ? " close-note" : ""}" title="${close ? "Close: could go either way" : ""}">${c.label}</span><span class="v${mark(1)}${off}">${fmt(a[c.k])}</span><span class="v${mark(-1)}${off}">${fmt(b[c.k])}</span>`;
       }).join("");
       mu = `<h3>Matchup preview</h3>
         <p class="score">${w}–${l}${tie ? "–" + tie : ""}</p>
+        ${closeCats.length ? `<p class="hint"><span class="close-note">Close: ${closeCats.join(", ")}</span>. These could go either way, so they are the categories to target with pickups and streamers.</p>` : ""}
         <p class="hint">${w > l ? "You'd win" : w < l ? "You'd lose" : "Too close to call"}, comparing each side's best ${size} players (${state.mode === "tot" ? "season totals" : "per game"}). Real weeks also depend on games played and injuries.</p>
         <div class="mu"><span></span><span class="h" style="text-align:right">${esc(myName())}</span><span class="h" style="text-align:right">${esc(state.opp)}</span>${cells}</div>`;
     } else {
