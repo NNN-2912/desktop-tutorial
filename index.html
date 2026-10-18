@@ -150,7 +150,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
 <header class="wrap top">
   <div>
     <h1>NBA 9-Cat <span>Checker</span></h1>
-    <p class="sub">Player values for ESPN head-to-head category leagues. Star your players to see which categories your team wins and which ones you still need.</p>
+    <p class="sub">Player values for your ESPN head-to-head league: FG%, FT%, 3P%, REB, AST, A/TO, STL, BLK, PTS. Star your players to see which categories your team wins and which ones you still need.</p>
   </div>
   <div class="datainfo" id="datainfo"></div>
 </header>
@@ -213,12 +213,12 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       <details class="help">
         <summary>How the numbers work</summary>
         <p>Each colored cell is a z-score: how many standard deviations a player sits above or below the average of the top players who would be rostered in your league (teams × roster size). Green helps you, red hurts you.</p>
-        <p>FG% and FT% are weighted by attempts, so a high-volume 60% shooter counts for more than a 2-shot 70% shooter. Turnovers count against you.</p>
+        <p>Your league scores FG%, FT%, 3P%, REB, AST, A/TO, STL, BLK and PTS. The three percentages and A/TO are team ratios, so they are weighted by volume: a high-volume 60% shooter counts for more than a 2-shot 70% shooter, and a 10-assist, 3-turnover guard helps your A/TO more than a 1-assist, 0-turnover big. Turnovers only matter through A/TO.</p>
         <p>"Value" adds up the categories that are switched on. Turn a category off to see rankings for a punt build.</p>
-        <p>The team report adds up the z-scores of the players you starred. In ESPN head-to-head you need to win 5 of 9 categories each week, so aim to be clearly ahead in 5 or 6 and don't overpay for the rest.</p>
+        <p>The team report adds up the z-scores of your players. In head-to-head you need to win 5 of 9 categories each week, so aim to be clearly ahead in 5 or 6 and don't overpay for the rest.</p>
       </details>
       <h3>Use your own numbers</h3>
-      <p class="hint">Load a CSV with columns: name, team, pos, gp, min, pts, reb, ast, stl, blk, tpm, fgm, fga, ftm, fta, to.</p>
+      <p class="hint">Load a CSV with columns: name, team, pos, gp, min, pts, reb, ast, stl, blk, tpm, tpa, fgm, fga, ftm, fta, to.</p>
       <input type="file" id="csv" accept=".csv,text/csv" aria-label="Load CSV file">
     </section>
   </aside>
@@ -232,16 +232,18 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
 (function () {
   "use strict";
 
+  // Your league's 9 categories (ESPN League Settings > Scoring). Ratio categories carry num/den:
+  // they are scored by volume-weighted impact, the same way a team total is calculated.
   const CATS = [
-    { k: "fg", label: "FG%", pct: true },
-    { k: "ft", label: "FT%", pct: true },
-    { k: "tpm", label: "3PM" },
-    { k: "pts", label: "PTS" },
+    { k: "fg", label: "FG%", num: "fgm", den: "fga", pct: true },
+    { k: "ft", label: "FT%", num: "ftm", den: "fta", pct: true },
+    { k: "tp", label: "3P%", num: "tpm", den: "tpa", pct: true },
     { k: "reb", label: "REB" },
     { k: "ast", label: "AST" },
+    { k: "ato", label: "A/TO", num: "ast", den: "to" },
     { k: "stl", label: "STL" },
     { k: "blk", label: "BLK" },
-    { k: "to", label: "TO", neg: true },
+    { k: "pts", label: "PTS" },
   ];
   const SRC_LABEL = { proj: "Projections", season: "Season so far", last: "Last season" };
 
@@ -251,7 +253,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       const [name, team, pos, gp, min, pts, reb, ast, stl, blk, tpm, fgp, fga, ftp, fta, to] = r;
       return {
         id: "s" + i, name, team, pos, inj: "",
-        proj: { gp, min, pts, reb, ast, stl, blk, tpm, fga, fgm: +(fgp * fga).toFixed(2), fta, ftm: +(ftp * fta).toFixed(2), to },
+        proj: { gp, min, pts, reb, ast, stl, blk, tpm, tpa: +(tpm / 0.36).toFixed(2), fga, fgm: +(fgp * fga).toFixed(2), fta, ftm: +(ftp * fta).toFixed(2), to },
       };
     });
   }
@@ -270,7 +272,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
   };
   const state = {
     src: "proj", mode: store.get("mode", "avg"), teams: store.get("teams", 10), roster: store.get("roster", 13),
-    minGp: 0, cats: new Set(store.get("cats", CATS.map((c) => c.k))), q: "", pos: "", team: "",
+    minGp: 0, cats: new Set(store.get("cats9", CATS.map((c) => c.k))), q: "", pos: "", team: "",
     show: "all", sort: "value", dir: -1, mine: new Set(initialTeam()), taken: new Set(store.get("taken", [])),
     owner: store.get("owner", {}), opp: store.get("opp", ""),
   };
@@ -323,7 +325,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       out.push({
         p, gp: s.gp, min: s.min || 0,
         fgm: s.fgm * f, fga: s.fga * f, ftm: s.ftm * f, fta: s.fta * f,
-        tpm: s.tpm * f, pts: s.pts * f, reb: s.reb * f, ast: s.ast * f, stl: s.stl * f, blk: s.blk * f, to: s.to * f,
+        tpm: s.tpm * f, tpa: (s.tpa != null ? s.tpa : s.tpm / 0.36) * f, pts: s.pts * f, reb: s.reb * f, ast: s.ast * f, stl: s.stl * f, blk: s.blk * f, to: s.to * f,
       });
     }
     return out;
@@ -331,9 +333,10 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
 
   function scoreAgainst(rows, pool) {
     const sum = (k) => pool.reduce((a, r) => a + r[k], 0);
-    const fgAvg = sum("fgm") / (sum("fga") || 1);
-    const ftAvg = sum("ftm") / (sum("fta") || 1);
-    const raw = (r, k) => k === "fg" ? r.fgm - fgAvg * r.fga : k === "ft" ? r.ftm - ftAvg * r.fta : r[k];
+    const avg = {};
+    for (const c of CATS) if (c.num) avg[c.k] = sum(c.num) / (sum(c.den) || 1);
+    const byKey = Object.fromEntries(CATS.map((c) => [c.k, c]));
+    const raw = (r, k) => { const c = byKey[k]; return c.num ? r[c.num] - avg[k] * r[c.den] : r[k]; };
     const dist = {};
     for (const c of CATS) {
       const vals = pool.map((r) => raw(r, c.k));
@@ -352,7 +355,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       }
       r.value = v;
     }
-    return { fgAvg, ftAvg };
+    return avg;
   }
 
   function compute() {
@@ -426,8 +429,8 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       const cells = CATS.map((c) => {
         const off = state.cats.has(c.k) ? "" : " off";
         let txt;
-        if (c.k === "fg") txt = `${fmtPct(r.fgm, r.fga)}<small>${fmt1(r.fgm)}/${fmt1(r.fga)}</small>`;
-        else if (c.k === "ft") txt = `${fmtPct(r.ftm, r.fta)}<small>${fmt1(r.ftm)}/${fmt1(r.fta)}</small>`;
+        if (c.pct) txt = `${fmtPct(r[c.num], r[c.den])}<small>${fmt1(r[c.num])}/${fmt1(r[c.den])}</small>`;
+        else if (c.num) txt = `${r[c.den] ? (r[c.num] / r[c.den]).toFixed(2) : "—"}<small>${fmt1(r[c.num])}/${fmt1(r[c.den])}</small>`;
         else txt = per ? Math.round(r[c.k]) : fmt1(r[c.k]);
         return `<td class="z${off}" style="${zColor(r.z[c.k])}" title="z ${r.z[c.k].toFixed(2)}">${txt}</td>`;
       }).join("");
@@ -526,9 +529,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
   function teamLine(list) {
     const sum = (k) => list.reduce((a, r) => a + r[k], 0);
     const t = {};
-    for (const k of ["tpm", "pts", "reb", "ast", "stl", "blk", "to"]) t[k] = sum(k);
-    t.fg = sum("fga") ? sum("fgm") / sum("fga") : 0;
-    t.ft = sum("fta") ? sum("ftm") / sum("fta") : 0;
+    for (const c of CATS) t[c.k] = c.num ? (sum(c.den) ? sum(c.num) / sum(c.den) : 0) : sum(c.k);
     return t;
   }
 
@@ -555,9 +556,9 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       let w = 0, l = 0, tie = 0;
       const cells = CATS.map((c) => {
         const on = state.cats.has(c.k);
-        const fmt = (v) => c.pct ? v.toFixed(3).replace(/^0/, "") : state.mode === "tot" ? Math.round(v) : v.toFixed(1);
+        const fmt = (v) => c.pct ? v.toFixed(3).replace(/^0/, "") : c.num ? v.toFixed(2) : state.mode === "tot" ? Math.round(v) : v.toFixed(1);
         let win = 0;
-        if (Math.abs(a[c.k] - b[c.k]) > (c.pct ? 0.0005 : 0.05)) win = (a[c.k] > b[c.k]) !== !!c.neg ? 1 : -1;
+        if (Math.abs(a[c.k] - b[c.k]) > (c.pct ? 0.0005 : c.num ? 0.005 : 0.05)) win = (a[c.k] > b[c.k]) !== !!c.neg ? 1 : -1;
         if (on) { if (win > 0) w++; else if (win < 0) l++; else tie++; }
         const off = on ? "" : " off";
         return `<span class="cat${off}">${c.label}</span><span class="v${win > 0 && on ? " w" : ""}${off}">${fmt(a[c.k])}</span><span class="v${win < 0 && on ? " w" : ""}${off}">${fmt(b[c.k])}</span>`;
@@ -637,7 +638,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     const k = b.dataset.cat;
     if (state.cats.has(k)) { if (state.cats.size > 1) state.cats.delete(k); } else state.cats.add(k);
     b.setAttribute("aria-pressed", state.cats.has(k));
-    store.set("cats", [...state.cats]);
+    store.set("cats9", [...state.cats]);
     render();
   });
   on("head", "click", (e) => {
@@ -705,7 +706,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     const lines = text.replace(/\r/g, "").split("\n").filter((l) => l.trim());
     const split = (l) => { const out = []; let cur = "", q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === "," && !q) { out.push(cur); cur = ""; } else cur += ch; } out.push(cur); return out.map((s) => s.trim()); };
     const head = split(lines[0]).map((h) => h.toLowerCase().replace(/[^a-z0-9%]/g, ""));
-    const alias = { player: "name", "3pm": "tpm", "3p": "tpm", fg3m: "tpm", trb: "reb", treb: "reb", tov: "to", g: "gp", mp: "min", mpg: "min" };
+    const alias = { player: "name", "3pm": "tpm", "3p": "tpm", fg3m: "tpm", "3pa": "tpa", fg3a: "tpa", trb: "reb", treb: "reb", tov: "to", g: "gp", mp: "min", mpg: "min" };
     const idx = (k) => head.findIndex((h) => (alias[h] || h) === k);
     const need = ["name", "gp", "pts", "reb", "ast", "stl", "blk", "tpm", "fgm", "fga", "ftm", "fta", "to"];
     const missing = need.filter((k) => idx(k) < 0);
@@ -713,7 +714,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     return lines.slice(1).map((l, i) => {
       const c = split(l), g = (k) => { const j = idx(k); return j < 0 ? "" : c[j]; }, n = (k) => parseFloat(g(k)) || 0;
       return { id: "c" + i, name: g("name"), team: g("team") || "", pos: g("pos") || "", inj: "",
-        proj: { gp: n("gp"), min: n("min"), pts: n("pts"), reb: n("reb"), ast: n("ast"), stl: n("stl"), blk: n("blk"), tpm: n("tpm"), fgm: n("fgm"), fga: n("fga"), ftm: n("ftm"), fta: n("fta"), to: n("to") } };
+        proj: { gp: n("gp"), min: n("min"), pts: n("pts"), reb: n("reb"), ast: n("ast"), stl: n("stl"), blk: n("blk"), tpm: n("tpm"), tpa: idx("tpa") >= 0 ? n("tpa") : n("tpm") / 0.36, fgm: n("fgm"), fga: n("fga"), ftm: n("ftm"), fta: n("fta"), to: n("to") } };
     }).filter((p) => p.name && p.proj.gp);
   }
   on("csv", "change", async (e) => {

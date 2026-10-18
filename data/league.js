@@ -180,8 +180,8 @@ window.LEAGUE = {
     },
     {
       name: "Haliberry Halilujah",
-      // The screenshot also shows Josh Giddey, Dyson Daniels, Alex Sarr and Alperen Sengun,
-      // which are on Ball in the Family in data/my-team.js. Left off here until confirmed.
+      // Josh Giddey, Dyson Daniels, Alex Sarr and Alperen Sengun are moving to Ball in the Family
+      // in a pending trade, so they are listed in data/my-team.js instead.
       players: [
         "Ausar Thompson",
         "Derik Queen",

@@ -1,8 +1,8 @@
 # NBA 9-Cat Checker
 
-A player-value tool for **ESPN fantasy basketball head-to-head category leagues** (FG%, FT%, 3PM, PTS, REB, AST, STL, BLK, TO), modeled on Hashtag Basketball's projections page.
+A player-value tool for our **ESPN fantasy basketball head-to-head league** (YTBBB), scoring **FG%, FT%, 3P%, REB, AST, A/TO, STL, BLK and PTS**. It is modeled on Hashtag Basketball's projections page.
 
-- Ranks every player by z-score in each of the 9 categories, colored green (helps you) to red (hurts you).
+- Ranks every player by z-score in each of the 9 categories, colored green (helps you) to red (hurts you). The categories are set in the `CATS` list in `index.html`.
 - **Punt builds:** tap a category to switch it off and the rankings recalculate.
 - **League settings:** number of teams and roster size set the player pool the values are measured against.
 - **Per game / totals**, **2026-27 projections**, **2026-27 season so far** (once games start) and **2025-26 actual**.
@@ -36,4 +36,4 @@ To refresh the data by hand: **Actions → Update player data → Run workflow**
 
 ## How values are calculated
 
-For each category, a player's z-score is `(player − pool average) ÷ pool standard deviation`, where the pool is the top `teams × roster` players. FG% and FT% use attempt-weighted impact (`makes − league% × attempts`), so volume matters. Turnovers are reversed (fewer is better). **Value** is the sum of the categories you have switched on.
+For each category, a player's z-score is `(player − pool average) ÷ pool standard deviation`, where the pool is the top `teams × roster` players. FG%, FT%, 3P% and A/TO are team ratios, so they use volume-weighted impact (`makes − league% × attempts`, or `assists − league A/TO × turnovers`). **Value** is the sum of the categories you have switched on.
