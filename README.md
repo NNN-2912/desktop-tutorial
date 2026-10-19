@@ -12,14 +12,14 @@ A player-value tool for our **ESPN fantasy basketball head-to-head league** (YTB
 
 Your starred and taken players are saved in your browser.
 
-**Your roster** lives in `data/my-team.js` and is starred automatically on every device. To change it, edit the list and raise `version` by 1. Players you star or remove on the site are remembered in that browser until the version changes.
+**Your roster and the league update automatically.** `scripts/fetch-league.mjs` downloads every team's roster from ESPN league 1306956773 every 3 hours and rewrites `data/my-team.js` (our team, team #24) and `data/league.js` (everyone else). Trades, adds and drops show up on the site on their own. The notes in `data/my-team.js` are kept for players who stay on the team. If the league is ever made private, add the `ESPN_S2` and `SWID` cookies from espn.com as repository secrets (**Settings → Secrets and variables → Actions**).
 
-**Your league** lives in `data/league.js`: each manager's team name and the players they own. Their players show the team name in the table and are left out of pickup suggestions. In the **League** panel you can pick a team, add players to it, and once a team has 8+ players, see a head-to-head matchup preview against yours. Same rule: edit the file and raise `version` to push changes to every device.
+In the **League** panel you can pick any team and see a head-to-head matchup preview against yours.
 
 ## Where the data comes from
 
 `scripts/fetch-espn.mjs` downloads ESPN Fantasy's own player projections and season stats.
-The GitHub Action in `.github/workflows/update-data.yml` runs it **once a day** and saves the result to `data/players.js`, so the app stays current as the season goes on.
+The GitHub Action in `.github/workflows/update-data.yml` runs it (and the league roster download) **every 3 hours** and saves the result to `data/players.js`, so the app stays current as the season goes on.
 
 If `data/players.js` is missing, the app falls back to `data/seed-players.js`, a set of hand-made estimates.
 
