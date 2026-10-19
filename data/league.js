@@ -2,8 +2,8 @@
 // screenshots). Names must match ESPN's spelling. After editing, raise `version` by 1 so every
 // browser reloads the list (changes made on the site are kept until then).
 window.LEAGUE = {
-  version: 3,
-  updated: "2026-10-18",
+  version: 4,
+  updated: "2026-10-19",
   myTeam: "Ball in the Family",
   teams: [
     {
@@ -19,7 +19,6 @@ window.LEAGUE = {
         "Julius Randle",
         "Darryn Peterson",
         "Kristaps Porzingis",
-        "Ben Simmons",
         "Neemias Queta",
         "Jimmy Butler III",
       ],
@@ -196,6 +195,9 @@ window.LEAGUE = {
         "Grayson Allen",
         "Myles Turner",
         "Alex Caruso",
+        "Moussa Diabate",
+        "Mitchell Robinson",
+        "Jonathan Kuminga",
       ],
     },
     {
