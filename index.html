@@ -308,6 +308,11 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     if (!L || !L.teams) return;
     if (store.get("teams", null) == null) state.teams = L.teams.length + 1;
     if (store.get("leagueVersion", null) === L.version) return;
+    // Start from a clean slate for every league team, so players a team has dropped become free agents
+    // again. Players marked with a plain ✕ (no team) are kept.
+    for (const [name, team] of Object.entries(state.owner)) {
+      if (team) { delete state.owner[name]; state.taken.delete(name); }
+    }
     for (const t of L.teams) for (const name of t.players) {
       state.owner[name] = t.name;
       state.taken.add(name);
