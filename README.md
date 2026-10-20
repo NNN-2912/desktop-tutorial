@@ -12,7 +12,7 @@ A player-value tool for our **ESPN fantasy basketball head-to-head league** (YTB
 
 Your starred and taken players are saved in your browser.
 
-**Your roster and the league update automatically.** `scripts/fetch-league.mjs` downloads every team's roster from ESPN league 1306956773 every 3 hours and rewrites `data/my-team.js` (our team, team #24) and `data/league.js` (everyone else). Trades, adds and drops show up on the site on their own. The notes in `data/my-team.js` are kept for players who stay on the team. If the league is ever made private, add the `ESPN_S2` and `SWID` cookies from espn.com as repository secrets (**Settings → Secrets and variables → Actions**).
+**Your roster and the league update automatically.** `scripts/fetch-league.mjs` downloads every team's roster from ESPN league 1306956773 every hour and rewrites `data/my-team.js` (our team, team #24) and `data/league.js` (everyone else). Trades, adds and drops show up on the site on their own. It also saves this week's live head-to-head score, category by category, to `data/matchup.js`, which the **League** panel shows at the top. The notes in `data/my-team.js` are kept for players who stay on the team. If the league is ever made private, add the `ESPN_S2` and `SWID` cookies from espn.com as repository secrets (**Settings → Secrets and variables → Actions**).
 
 In the **League** panel you can pick any team and see a head-to-head matchup preview against yours.
 

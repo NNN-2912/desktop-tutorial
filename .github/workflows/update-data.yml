@@ -2,7 +2,7 @@ name: Update player data
 
 on:
   schedule:
-    - cron: "17 */3 * * *" # every 3 hours
+    - cron: "17 * * * *" # every hour, so the live matchup score stays current
   workflow_dispatch:
   push:
     paths:
@@ -40,7 +40,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/players.js data/league.js data/my-team.js
+          git add data/players.js data/league.js data/my-team.js data/matchup.js
           if git diff --cached --quiet; then
             echo "No changes"
           else
