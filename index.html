@@ -229,6 +229,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
   <aside class="league">
     <section class="panel" id="leaguepanel" aria-labelledby="leaguetitle">
       <h2 id="leaguetitle">League</h2>
+      <div id="livescore"></div>
       <label class="field" for="opp" style="margin-top:8px">Team
         <select id="opp"></select>
       </label>
@@ -241,6 +242,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
 <script src="data/players.js" onerror="void 0"></script>
 <script src="data/my-team.js" onerror="void 0"></script>
 <script src="data/league.js" onerror="void 0"></script>
+<script src="data/matchup.js" onerror="void 0"></script>
 <script>
 (function () {
   "use strict";
@@ -287,7 +289,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     src: "proj", mode: store.get("mode", "avg"), teams: store.get("teams", 10), roster: store.get("roster", 13),
     minGp: 0, cats: new Set(store.get("cats9", CATS.map((c) => c.k))), q: "", pos: "", team: "",
     show: "all", sort: "value", dir: -1, mine: new Set(initialTeam()), taken: new Set(store.get("taken", [])),
-    owner: store.get("owner", {}), opp: store.get("opp", ""),
+    owner: store.get("owner", {}), opp: store.get("opp", "") || (window.MATCHUP && window.MATCHUP.opponent) || "",
   };
   loadLeague();
 
@@ -554,11 +556,29 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     return t;
   }
 
+  // This week's real head-to-head score, saved from ESPN by scripts/fetch-league.mjs.
+  function renderLive() {
+    const M = window.MATCHUP;
+    if (!M || !M.cats || !M.cats.length) { $("livescore").innerHTML = ""; return; }
+    const fmt = (c, v) => v == null ? "—" : /%$/.test(c.label) ? v.toFixed(3).replace(/^0/, "") : Number.isInteger(v) ? v : v.toFixed(2);
+    const cells = M.cats.map((c) => {
+      const mark = (side) => c.result === "TIE" ? " c" : c.result === side ? " w" : "";
+      return `<span class="cat">${esc(c.label)}</span><span class="v${mark("WIN")}">${fmt(c, c.mine)}</span><span class="v${mark("LOSS")}">${fmt(c, c.theirs)}</span>`;
+    }).join("");
+    const { wins, losses, ties } = M.score;
+    const when = new Date(M.updated).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
+    $("livescore").innerHTML = `<h3>Week ${M.week} live${M.day && M.days ? ` · day ${M.day} of ${M.days}` : ""}</h3>
+      <p class="score">${wins}–${losses}${ties ? "–" + ties : ""}</p>
+      <p class="hint">${wins > losses ? "Winning" : wins < losses ? "Losing" : "Tied"} against ${esc(M.opponent)}. From ESPN, last changed ${esc(when)}.</p>
+      <div class="mu"><span></span><span class="h" style="text-align:right">${esc(myName())}</span><span class="h" style="text-align:right">${esc(M.opponent)}</span>${cells}</div>`;
+  }
+
   function renderLeague() {
     const teams = leagueTeams();
     const sel = $("opp");
     if (!teams.length) { $("leaguepanel").hidden = true; return; }
     if (!teams.includes(state.opp)) state.opp = teams[0];
+    renderLive();
     const opts = teams.map((t) => `<option${t === state.opp ? " selected" : ""}>${esc(t)}</option>`).join("");
     if (sel.innerHTML !== opts) sel.innerHTML = opts;
     sel.value = state.opp;

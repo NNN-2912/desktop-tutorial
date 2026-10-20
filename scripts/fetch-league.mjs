@@ -1,6 +1,7 @@
 // Downloads every team's roster in our ESPN league and rewrites data/league.js
 // (the other managers) and data/my-team.js (our team), so trades, adds and drops
-// show up on the site without editing anything by hand.
+// show up on the site without editing anything by hand. It also saves this week's
+// live head-to-head category scores to data/matchup.js.
 //
 // Usage: node scripts/fetch-league.mjs
 // Env:   LEAGUE_ID, MY_TEAM_ID, SEASON (year the season ends in, e.g. 2027)
@@ -17,10 +18,17 @@ const { ESPN_S2, SWID } = process.env;
 
 const API_URL =
   `https://lm-api-reads.fantasy.espn.com/apis/v3/games/fba/seasons/${SEASON}` +
-  `/segments/0/leagues/${LEAGUE_ID}?view=mTeam&view=mRoster`;
+  `/segments/0/leagues/${LEAGUE_ID}?view=mTeam&view=mRoster&view=mSettings&view=mMatchupScore&view=mScoreboard`;
 
 const LEAGUE_FILE = new URL("../data/league.js", import.meta.url);
 const MY_TEAM_FILE = new URL("../data/my-team.js", import.meta.url);
+const MATCHUP_FILE = new URL("../data/matchup.js", import.meta.url);
+
+// ESPN basketball stat ids for the categories a league can score.
+const STAT_LABELS = {
+  0: "PTS", 1: "BLK", 2: "STL", 3: "AST", 4: "OREB", 5: "DREB", 6: "REB", 11: "TO", 13: "FGM", 14: "FGA",
+  15: "FTM", 16: "FTA", 17: "3PM", 18: "3PA", 19: "FG%", 20: "FT%", 21: "3P%", 35: "A/TO", 37: "DD", 38: "TD",
+};
 
 async function fetchLeague(tries = 4) {
   const headers = { Accept: "application/json", "User-Agent": "Mozilla/5.0 (fantasy-cat-checker)" };
@@ -102,7 +110,64 @@ if (!mineSame) {
   );
 }
 
+// --- data/matchup.js: this week's head-to-head score for our team ---
+// Kept separate so a change in ESPN's scoreboard format never stops the roster sync.
+let matchupNote = "matchup.js unchanged";
+try {
+  const week = currentMatchup(data, MY_TEAM_ID);
+  const old = loadDataFile(MATCHUP_FILE, "MATCHUP");
+  const strip = (m) => JSON.stringify({ ...m, updated: undefined });
+  if (week && old && strip(old) === strip(week)) {
+    matchupNote = `matchup.js unchanged (week ${week.week})`;
+  } else if (week) {
+    writeFileSync(
+      MATCHUP_FILE,
+      `${stamp}window.MATCHUP = ${JSON.stringify(week, null, 2)};\n`,
+    );
+    matchupNote = `matchup.js updated (week ${week.week}: ${week.score.wins}-${week.score.losses}-${week.score.ties} vs ${week.opponent})`;
+  } else {
+    matchupNote = "no current matchup found";
+  }
+} catch (err) {
+  matchupNote = `matchup skipped (${err.message})`;
+}
+
+function currentMatchup(data, myId) {
+  const week = data.status?.currentMatchupPeriod;
+  const game = (data.schedule || []).find(
+    (m) => m.matchupPeriodId === week && (m.home?.teamId === myId || m.away?.teamId === myId),
+  );
+  if (!game || !game.away) return null;
+  const [us, them] = game.home.teamId === myId ? [game.home, game.away] : [game.away, game.home];
+  const score = (side) => side.cumulativeScoreLive || side.cumulativeScore || {};
+  const ours = score(us), theirs = score(them);
+  const items = data.settings?.scoringSettings?.scoringItems || [];
+  const ids = items.length ? items.map((i) => String(i.statId)) : Object.keys(ours.scoreByStat || {});
+  const reverse = new Set(items.filter((i) => i.isReverseItem).map((i) => String(i.statId)));
+  const cats = ids.map((id) => {
+    const a = ours.scoreByStat?.[id], b = theirs.scoreByStat?.[id];
+    return {
+      label: STAT_LABELS[id] || `Stat ${id}`,
+      mine: a?.score ?? null,
+      theirs: b?.score ?? null,
+      result: a?.result || null, // WIN / LOSS / TIE from ESPN, from our side
+      lowerWins: reverse.has(id),
+    };
+  });
+  const days = data.settings?.scheduleSettings?.matchupPeriods?.[week] || [];
+  const dayIdx = days.indexOf(data.scoringPeriodId);
+  return {
+    updated: new Date().toISOString(),
+    week,
+    day: dayIdx >= 0 ? dayIdx + 1 : null,
+    days: days.length || null,
+    opponent: teamName((data.teams || []).find((t) => t.id === them.teamId) || { id: them.teamId }),
+    score: { wins: ours.wins ?? 0, losses: ours.losses ?? 0, ties: ours.ties ?? 0 },
+    cats,
+  };
+}
+
 console.log(
   `League ${LEAGUE_ID}: ${teams.length} teams. ${teamName(mine)} has ${myPlayers.length} players. ` +
-    `league.js ${leagueSame ? "unchanged" : "updated"}, my-team.js ${mineSame ? "unchanged" : "updated"}.`,
+    `league.js ${leagueSame ? "unchanged" : "updated"}, my-team.js ${mineSame ? "unchanged" : "updated"}, ${matchupNote}.`,
 );
