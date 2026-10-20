@@ -567,7 +567,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     }).join("");
     const { wins, losses, ties } = M.score;
     const when = new Date(M.updated).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" });
-    $("livescore").innerHTML = `<h3>Week ${M.week} live${M.day && M.days ? ` · day ${M.day} of ${M.days}` : ""}</h3>
+    $("livescore").innerHTML = `<h3>Week ${M.week} live</h3>
       <p class="score">${wins}–${losses}${ties ? "–" + ties : ""}</p>
       <p class="hint">${wins > losses ? "Winning" : wins < losses ? "Losing" : "Tied"} against ${esc(M.opponent)}. From ESPN, last changed ${esc(when)}.</p>
       <div class="mu"><span></span><span class="h" style="text-align:right">${esc(myName())}</span><span class="h" style="text-align:right">${esc(M.opponent)}</span>${cells}</div>`;

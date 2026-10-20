@@ -142,7 +142,11 @@ function currentMatchup(data, myId) {
   const score = (side) => side.cumulativeScoreLive || side.cumulativeScore || {};
   const ours = score(us), theirs = score(them);
   const items = data.settings?.scoringSettings?.scoringItems || [];
-  const ids = items.length ? items.map((i) => String(i.statId)) : Object.keys(ours.scoreByStat || {});
+  // Same order as the dashboard's categories; anything else the league scores goes last.
+  const ORDER = [19, 20, 21, 6, 3, 35, 2, 1, 0].map(String);
+  const rank = (id) => (ORDER.includes(id) ? ORDER.indexOf(id) : ORDER.length);
+  const ids = (items.length ? items.map((i) => String(i.statId)) : Object.keys(ours.scoreByStat || {}))
+    .sort((a, b) => rank(a) - rank(b));
   const reverse = new Set(items.filter((i) => i.isReverseItem).map((i) => String(i.statId)));
   const cats = ids.map((id) => {
     const a = ours.scoreByStat?.[id], b = theirs.scoreByStat?.[id];
@@ -154,13 +158,9 @@ function currentMatchup(data, myId) {
       lowerWins: reverse.has(id),
     };
   });
-  const days = data.settings?.scheduleSettings?.matchupPeriods?.[week] || [];
-  const dayIdx = days.indexOf(data.scoringPeriodId);
   return {
     updated: new Date().toISOString(),
     week,
-    day: dayIdx >= 0 ? dayIdx + 1 : null,
-    days: days.length || null,
     opponent: teamName((data.teams || []).find((t) => t.id === them.teamId) || { id: them.teamId }),
     score: { wins: ours.wins ?? 0, losses: ours.losses ?? 0, ties: ours.ties ?? 0 },
     cats,
