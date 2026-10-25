@@ -32,7 +32,7 @@ If `data/players.js` is missing, the app falls back to `data/seed-players.js`, a
 2. On GitHub, open **Settings → Pages**, set **Source** to "Deploy from a branch", pick `main` and `/ (root)`, and save.
 3. After a minute your site is live at `https://<your-username>.github.io/<repo-name>/`. Bookmark it on your phone.
 
-To refresh the data by hand: **Actions → Update player data → Run workflow**.
+To get the latest data on the site, tap **Refresh data** at the top right. It reloads the newest files the hourly sync saved. To pull from ESPN right away instead of waiting for the next hourly sync, tap **Sync from ESPN now** (or open **Actions → Update player data → Run workflow**), wait about a minute, then tap **Refresh data**.
 
 ## How values are calculated
 
