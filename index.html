@@ -50,6 +50,8 @@ h1 span { color: var(--accent); }
 .datainfo { font: 500 13px/1.35 var(--font-data); color: var(--muted); text-align: right; }
 .datainfo b { color: var(--ink); font-weight: 600; }
 .warn { color: var(--bad); }
+.datainfo .refresh { margin-top: 8px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.datainfo .refresh a { color: var(--muted); font-size: 12px; }
 
 .controls { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-block: 10px; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
@@ -661,12 +663,37 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     if (group === "show") for (const v of ["all", "mine", "free"]) $("show-" + v).setAttribute("aria-pressed", v === val);
   }
 
+  // The GitHub Action writes these files from ESPN every hour.
+  const DATA_FILES = ["data/players.js", "data/my-team.js", "data/league.js", "data/matchup.js"];
+  const SYNC_URL = "https://github.com/NNN-2912/desktop-tutorial/actions/workflows/update-data.yml";
+
   function renderInfo() {
     const m = DATA.meta;
-    const when = m.updated ? new Date(m.updated).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
-    $("datainfo").innerHTML = DATA.estimate
+    const when = m.updated ? new Date(m.updated).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+    let note = "";
+    try { note = sessionStorage.getItem("ncc:refreshed") || ""; sessionStorage.removeItem("ncc:refreshed"); } catch (e) { /* storage unavailable */ }
+    $("datainfo").innerHTML = (DATA.estimate
       ? `<b>${esc(m.source)}</b> · ${esc(m.season || "")}<br><span class="warn">Approximate numbers until the ESPN data update runs.</span>`
-      : `<b>${esc(m.source)}</b> · ${esc(m.season || "")} · ${DATA.players.length} players<br>Updated ${esc(when)}`;
+      : `<b>${esc(m.source)}</b> · ${esc(m.season || "")} · ${DATA.players.length} players<br>ESPN sync ${esc(when)}`) +
+      (note ? `<br>${esc(note)}` : "") +
+      `<div class="refresh"><a href="${SYNC_URL}" target="_blank" rel="noopener" title="Run workflow on GitHub to sync from ESPN right away">Sync from ESPN now</a><button type="button" class="btn" id="refresh">Refresh data</button></div>`;
+  }
+
+  // Re-download the data files past the browser cache, then reload so every panel starts from them.
+  async function refreshData() {
+    const b = $("refresh");
+    b.disabled = true; b.textContent = "Refreshing…";
+    const before = DATA.meta.updated;
+    try {
+      const got = await Promise.all(DATA_FILES.map((f) => fetch(f, { cache: "reload" }).then((r) => r.ok ? r.text() : "")));
+      const stamp = (got[0].match(/"updated":"([^"]+)"/) || [])[1];
+      const fresh = stamp && stamp !== before;
+      try { sessionStorage.setItem("ncc:refreshed", fresh ? "New data loaded." : "Already up to date. ESPN syncs every hour."); } catch (e) { /* storage unavailable */ }
+      location.reload();
+    } catch (err) {
+      b.disabled = false; b.textContent = "Refresh data";
+      $("datainfo").insertAdjacentHTML("beforeend", `<br><span class="warn">Could not refresh: ${esc(err.message)}</span>`);
+    }
   }
 
   function on(id, ev, fn) { $(id).addEventListener(ev, fn); }
@@ -712,6 +739,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
     store.set("owner", state.owner); store.set("taken", [...state.taken]); store.set("mine", [...state.mine]);
     render();
   }
+  on("datainfo", "click", (e) => { if (e.target.id === "refresh") refreshData(); });
   on("body", "click", (e) => {
     const b = e.target.closest(".star, .tk"); if (!b) return;
     if (b.classList.contains("tk")) toggleTaken(b.dataset.name);
