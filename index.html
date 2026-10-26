@@ -116,6 +116,17 @@ tbody tr:hover td { filter: brightness(0.97); }
 .mu .cat.c { background: none; }
 .close-note { color: var(--close); font-weight: 600; }
 .mu .off { opacity: 0.4; }
+.stand { width: 100%; border-collapse: collapse; font: 500 13px/1.2 var(--font-data); font-variant-numeric: tabular-nums; }
+.stand th { font: 700 12px/1.1 var(--font-display); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.stand td { text-align: right; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+.stand th:nth-child(2), .stand td:nth-child(2) { text-align: left; }
+.stand td:nth-child(2) { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stand tr.me td { background: color-mix(in srgb, var(--star) 12%, transparent); font-weight: 700; }
+.games { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font: 500 13px/1.2 var(--font-data); font-variant-numeric: tabular-nums; }
+.games li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.games li.me { border-color: var(--star); }
+.games .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.games .lead { font-weight: 700; color: var(--good); }
 .score { font: 700 26px/1 var(--font-display); margin: 6px 0 2px; }
 .addrow { display: flex; gap: 6px; margin-top: 10px; }
 .addrow input { flex: 1; min-width: 0; font: 500 14px/1.2 var(--font-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-height: 34px; }
@@ -236,6 +247,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
         <select id="opp"></select>
       </label>
       <div id="leaguecontent"></div>
+      <div id="standings"></div>
     </section>
   </aside>
 </main>
@@ -245,6 +257,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
 <script src="data/my-team.js" onerror="void 0"></script>
 <script src="data/league.js" onerror="void 0"></script>
 <script src="data/matchup.js" onerror="void 0"></script>
+<script src="data/standings.js" onerror="void 0"></script>
 <script>
 (function () {
   "use strict";
@@ -575,12 +588,31 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
       <div class="mu"><span></span><span class="h" style="text-align:right">${esc(myName())}</span><span class="h" style="text-align:right">${esc(M.opponent)}</span>${cells}</div>`;
   }
 
+  // Standings and every matchup this week, saved from ESPN by scripts/fetch-league.mjs.
+  function renderStandings() {
+    const S = window.STANDINGS;
+    if (!S || !S.teams || !S.teams.length) { $("standings").innerHTML = ""; return; }
+    const rec = (x) => `${x.wins}–${x.losses}${x.ties ? "–" + x.ties : ""}`;
+    const games = (S.matchups || []).map((m) => {
+      const lead = (a, b) => a.wins > b.wins ? " lead" : "";
+      return `<li class="${m.home.mine || m.away.mine ? "me" : ""}">
+        <span class="t${lead(m.away, m.home)}">${esc(m.away.name)}</span><span class="${lead(m.away, m.home).trim()}">${rec(m.away)}</span>
+        <span class="t${lead(m.home, m.away)}">${esc(m.home.name)}</span><span class="${lead(m.home, m.away).trim()}">${rec(m.home)}</span></li>`;
+    }).join("");
+    const rows = S.teams.map((t, i) => `<tr class="${t.mine ? "me" : ""}"><td>${t.seed || i + 1}</td><td title="${esc(t.name)}">${esc(t.name)}</td><td>${rec(t)}</td><td>${t.pct.toFixed(3).replace(/^0/, "")}</td><td>${t.gb == null ? "" : t.gb || "–"}</td></tr>`).join("");
+    $("standings").innerHTML = `${games ? `<h3>Week ${S.week} matchups</h3><ul class="games">${games}</ul>` : ""}
+      <h3>Standings</h3>
+      <table class="stand"><thead><tr><th>#</th><th>Team</th><th>W–L–T</th><th>Pct</th><th>GB</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="hint">Category wins and losses from ESPN.</p>`;
+  }
+
   function renderLeague() {
     const teams = leagueTeams();
     const sel = $("opp");
     if (!teams.length) { $("leaguepanel").hidden = true; return; }
     if (!teams.includes(state.opp)) state.opp = teams[0];
     renderLive();
+    renderStandings();
     const opts = teams.map((t) => `<option${t === state.opp ? " selected" : ""}>${esc(t)}</option>`).join("");
     if (sel.innerHTML !== opts) sel.innerHTML = opts;
     sel.value = state.opp;
@@ -664,7 +696,7 @@ details.help p, details.help li { font-size: 13.5px; color: var(--muted); max-wi
   }
 
   // The GitHub Action writes these files from ESPN every hour.
-  const DATA_FILES = ["data/players.js", "data/my-team.js", "data/league.js", "data/matchup.js"];
+  const DATA_FILES = ["data/players.js", "data/my-team.js", "data/league.js", "data/matchup.js", "data/standings.js"];
   const SYNC_URL = "https://github.com/NNN-2912/desktop-tutorial/actions/workflows/update-data.yml";
 
   function renderInfo() {
