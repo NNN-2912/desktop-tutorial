@@ -17,7 +17,14 @@ if (!res.ok) throw new Error(`ESPN schedule request failed (HTTP ${res.status})`
 const data = await res.json();
 
 const proTeams = data.settings?.proTeams || [];
-const abbrev = Object.fromEntries(proTeams.map((t) => [t.id, (t.abbrev || "").toUpperCase()]));
+// ESPN's own abbreviations (NY, GS, SA, NO, UTAH, WSH) differ from the ones in data/players.js.
+const RENAME = { NY: "NYK", GS: "GSW", SA: "SAS", NO: "NOP", UTAH: "UTA", WSH: "WAS" };
+const abbrev = Object.fromEntries(
+  proTeams.map((t) => {
+    const a = (t.abbrev || "").toUpperCase();
+    return [t.id, RENAME[a] || a];
+  }),
+);
 // Game dates in US Eastern time, which is how NBA game days are counted.
 const etDate = (ms) => new Date(ms).toLocaleDateString("en-CA", { timeZone: "America/New_York" });
 
