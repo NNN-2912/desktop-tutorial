@@ -1,7 +1,8 @@
 // Downloads every team's roster in our ESPN league and rewrites data/league.js
 // (the other managers) and data/my-team.js (our team), so trades, adds and drops
 // show up on the site without editing anything by hand. It also saves this week's
-// live head-to-head category scores to data/matchup.js.
+// live head-to-head category scores to data/matchup.js, and the standings plus
+// every matchup this week to data/standings.js.
 //
 // Usage: node scripts/fetch-league.mjs
 // Env:   LEAGUE_ID, MY_TEAM_ID, SEASON (year the season ends in, e.g. 2027)
@@ -23,6 +24,7 @@ const API_URL =
 const LEAGUE_FILE = new URL("../data/league.js", import.meta.url);
 const MY_TEAM_FILE = new URL("../data/my-team.js", import.meta.url);
 const MATCHUP_FILE = new URL("../data/matchup.js", import.meta.url);
+const STANDINGS_FILE = new URL("../data/standings.js", import.meta.url);
 
 // ESPN basketball stat ids for the categories a league can score.
 const STAT_LABELS = {
@@ -132,6 +134,52 @@ try {
   matchupNote = `matchup skipped (${err.message})`;
 }
 
+// --- data/standings.js: every team's record and this week's matchups ---
+// Also kept separate, for the same reason as matchup.js.
+let standingsNote = "standings.js unchanged";
+try {
+  const table = standings(data);
+  const old = loadDataFile(STANDINGS_FILE, "STANDINGS");
+  const strip = (m) => JSON.stringify({ ...m, updated: undefined });
+  if (!table.teams.length) {
+    standingsNote = "no standings found";
+  } else if (!old || strip(old) !== strip(table)) {
+    writeFileSync(STANDINGS_FILE, `${stamp}window.STANDINGS = ${JSON.stringify(table, null, 2)};\n`);
+    standingsNote = `standings.js updated (${table.teams.length} teams, ${table.matchups.length} matchups in week ${table.week})`;
+  }
+} catch (err) {
+  standingsNote = `standings skipped (${err.message})`;
+}
+
+function standings(data) {
+  const byId = Object.fromEntries((data.teams || []).map((t) => [t.id, t]));
+  const teams = (data.teams || []).map((t) => {
+    const r = t.record?.overall || {};
+    return {
+      name: teamName(t),
+      mine: t.id === MY_TEAM_ID,
+      seed: t.playoffSeed || null,
+      wins: r.wins ?? 0,
+      losses: r.losses ?? 0,
+      ties: r.ties ?? 0,
+      pct: r.percentage ?? 0,
+      gb: r.gamesBack ?? null,
+    };
+  });
+  // ESPN's playoff seed already applies the league's tiebreakers; fall back to win percentage.
+  teams.sort((a, b) => (a.seed && b.seed ? a.seed - b.seed : b.pct - a.pct || b.wins - a.wins));
+  const week = data.status?.currentMatchupPeriod;
+  const side = (s) => {
+    const sc = s.cumulativeScoreLive || s.cumulativeScore || {};
+    return { name: teamName(byId[s.teamId] || { id: s.teamId }), mine: s.teamId === MY_TEAM_ID, wins: sc.wins ?? 0, losses: sc.losses ?? 0, ties: sc.ties ?? 0 };
+  };
+  const matchups = (data.schedule || [])
+    .filter((m) => m.matchupPeriodId === week && m.home && m.away)
+    .map((m) => ({ home: side(m.home), away: side(m.away) }))
+    .sort((a, b) => (b.home.mine || b.away.mine) - (a.home.mine || a.away.mine));
+  return { updated: new Date().toISOString(), week, teams, matchups };
+}
+
 function currentMatchup(data, myId) {
   const week = data.status?.currentMatchupPeriod;
   const game = (data.schedule || []).find(
@@ -169,5 +217,5 @@ function currentMatchup(data, myId) {
 
 console.log(
   `League ${LEAGUE_ID}: ${teams.length} teams. ${teamName(mine)} has ${myPlayers.length} players. ` +
-    `league.js ${leagueSame ? "unchanged" : "updated"}, my-team.js ${mineSame ? "unchanged" : "updated"}, ${matchupNote}.`,
+    `league.js ${leagueSame ? "unchanged" : "updated"}, my-team.js ${mineSame ? "unchanged" : "updated"}, ${matchupNote}, ${standingsNote}.`,
 );

@@ -40,7 +40,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/players.js data/league.js data/my-team.js data/matchup.js
+          git add data/players.js data/league.js data/my-team.js data/matchup.js data/standings.js
           if git diff --cached --quiet; then
             echo "No changes"
           else
